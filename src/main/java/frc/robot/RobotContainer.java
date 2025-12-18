@@ -6,15 +6,15 @@ package frc.robot;
 
 import com.ctre.phoenix.led.CANdle;
 
+import frc.robot.CANdle.CANdleLib;
+import frc.robot.CANdle.CANdleLib.AnimationConfig;
+import frc.robot.CANdle.CANdleLib.AnimationTypes;
+import frc.robot.CANdle.CANdleLib.Colors;
+import frc.robot.CANdle.CANdleLib.Direction;
+import frc.robot.CANdle.CANdleLib.LEDStrip;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.Autos;
 import frc.robot.commands.ExampleCommand;
-import frc.robot.subsystems.CANdleSubsystem;
-import frc.robot.subsystems.CANdleSubsystem.AnimationConfig;
-import frc.robot.subsystems.CANdleSubsystem.AnimationTypes;
-import frc.robot.subsystems.CANdleSubsystem.Colors;
-import frc.robot.subsystems.CANdleSubsystem.Direction;
-import frc.robot.subsystems.CANdleSubsystem.LEDStrip;
 import frc.robot.subsystems.ExampleSubsystem;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -31,7 +31,7 @@ public class RobotContainer {
   private final ExampleSubsystem m_exampleSubsystem = new ExampleSubsystem();
   
   // CANdle subsystem and components
-  private final CANdleSubsystem m_candleSubsystem = new CANdleSubsystem(Constants.candle.id, CANdle.LEDStripType.RGB);
+  private final CANdleLib m_candleSubsystem = new CANdleLib(Constants.candle.id, CANdle.LEDStripType.RGB);
   private final CANdle m_candle = m_candleSubsystem.createCANdle();
   private final LEDStrip m_fullStrip = m_candleSubsystem.createLEDStrip(0, 60);
   private final LEDStrip m_leftHalf = m_candleSubsystem.createLEDStrip(0, 30);

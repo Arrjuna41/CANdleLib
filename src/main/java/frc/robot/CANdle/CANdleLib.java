@@ -1,4 +1,4 @@
-package frc.robot.subsystems;
+package frc.robot.CANdle;
 
 import com.ctre.phoenix.led.Animation;
 import com.ctre.phoenix.led.CANdle;
@@ -13,9 +13,11 @@ import com.ctre.phoenix.led.StrobeAnimation;
 import com.ctre.phoenix.led.TwinkleAnimation;
 import com.ctre.phoenix.led.TwinkleOffAnimation;
 
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.MockCANdle;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 
 /**
  * Subsystem for controlling CTRE CANdle LED strips with animations and color control.
@@ -42,7 +44,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
  * ledSubsystem.animateStrip(candle, strip, Colors.BLUE, AnimationTypes.Rainbow).schedule();
  * </pre>
  */
-public class CANdleSubsystem extends SubsystemBase{
+public class CANdleLib{
     private int busId;
     private CANdle.LEDStripType m_rgbOrder;
 
@@ -52,7 +54,7 @@ public class CANdleSubsystem extends SubsystemBase{
      * @param id the CAN bus ID of the CANdle device
      * @param rgbOrder the LED strip type defining the RGB byte order (e.g., RGB, GRB, BRG)
      */
-    public CANdleSubsystem(int id, CANdle.LEDStripType rgbOrder) {
+    public CANdleLib(int id, CANdle.LEDStripType rgbOrder) {
         busId = id;
         m_rgbOrder = rgbOrder;
     }
@@ -71,7 +73,14 @@ public class CANdleSubsystem extends SubsystemBase{
      * @return a configured CANdle instance ready for use
      */
     public CANdle createCANdle() {
-        CANdle candle = new CANdle(busId);
+        CANdle candle;
+
+        if (RobotBase.isReal()) {
+            candle = new CANdle(busId);
+        }
+        else {
+            candle = new MockCANdle(busId);
+        }
         CANdleConfiguration config = new CANdleConfiguration();
         config.stripType = m_rgbOrder;
         candle.configAllSettings(config);
@@ -270,64 +279,80 @@ public class CANdleSubsystem extends SubsystemBase{
     /**
      * Creates a command to set the entire LED strip to a solid color.
      * 
-     * <p>This command sets all LEDs on the CANdle to the specified color.
+     * <p>This command first turns off all LEDs, then sets them to the specified color.
+     * This two-step process prevents certain LEDs from sticking in their previous state.
      * The command completes instantly.
      * 
      * @param candle the CANdle device to control (must not be null)
      * @param color the color to set (must not be null)
-     * @return an InstantCommand that sets the strip color
+     * @return a SequentialCommandGroup that clears then sets the strip color
      * @throws IllegalArgumentException if any parameter is null
      */
     public Command setColor(CANdle candle, LEDColor color) {
         if (candle == null || color == null) {
             throw new IllegalArgumentException("Parameters cannot be null");
         }
-        return new InstantCommand(() -> candle.setLEDs(color.getRed(), color.getGreen(), color.getBlue()), this);
+        return new SequentialCommandGroup(
+            offCommand(candle), 
+            new InstantCommand(() -> candle.setLEDs(color.getRed(), color.getGreen(), color.getBlue()))
+        );
     }
 
     /**
      * Creates a command to set the entire LED strip to a solid color using RGB values.
      * 
-     * <p>This is a convenience overload that accepts raw RGB integer values
+     * <p>This command first turns off all LEDs, then sets them to the specified color.
+     * This two-step process prevents certain LEDs from sticking in their previous state.
+     * This is a convenience overload that accepts raw RGB integer values
      * instead of an LEDColor object.
      * 
      * @param candle the CANdle device to control (must not be null)
      * @param red the red channel value (0-255)
      * @param green the green channel value (0-255)
      * @param blue the blue channel value (0-255)
-     * @return an InstantCommand that sets the strip color
+     * @return a SequentialCommandGroup that clears then sets the strip color
      * @throws IllegalArgumentException if candle is null
      */
     public Command setColor(CANdle candle, int red, int green, int blue) {
         if (candle == null) {
             throw new IllegalArgumentException("CANdle cannot be null");
         }
-        return new InstantCommand(() -> candle.setLEDs(red, green, blue), this);
+        return new SequentialCommandGroup(
+            offCommand(candle),
+            new InstantCommand(() -> candle.setLEDs(red, green, blue))
+        );
     }
 
     /**
      * Creates a command to set a specific LED strip segment to a solid color.
      * 
-     * <p>This command sets only the LEDs in the specified strip segment,
+     * <p>This command first turns off the specified segment, then sets it to the color.
+     * This two-step process prevents certain LEDs from sticking in their previous state.
+     * This command sets only the LEDs in the specified strip segment,
      * leaving other LEDs unchanged. The command completes instantly.
      * 
      * @param candle the CANdle device to control (must not be null)
      * @param strip the LED strip segment to set (must not be null)
      * @param color the color to set (must not be null)
-     * @return an InstantCommand that sets the strip segment color
+     * @return a SequentialCommandGroup that clears then sets the strip segment color
      * @throws IllegalArgumentException if any parameter is null
      */
     public Command setStripColor(CANdle candle, LEDStrip strip, LEDColor color) {
         if (candle == null || strip == null || color == null) {
             throw new IllegalArgumentException("Parameters cannot be null");
         }
-        return new InstantCommand(() -> candle.setLEDs(color.getRed(), color.getGreen(), color.getBlue(), 0, strip.start, strip.length()), this);
+        return new SequentialCommandGroup(
+            offCommand(candle, strip),
+            new InstantCommand(() -> candle.setLEDs(color.getRed(), color.getGreen(), color.getBlue(), 0, strip.start, strip.length()))
+        );
     }
 
     /**
      * Creates a command to set a specific LED strip segment to a solid color using RGB values.
      * 
-     * <p>This is a convenience overload that accepts raw RGB integer values
+     * <p>This command first turns off the specified segment, then sets it to the color.
+     * This two-step process prevents certain LEDs from sticking in their previous state.
+     * This is a convenience overload that accepts raw RGB integer values
      * instead of an LEDColor object.
      * 
      * @param candle the CANdle device to control (must not be null)
@@ -335,14 +360,17 @@ public class CANdleSubsystem extends SubsystemBase{
      * @param red the red channel value (0-255)
      * @param green the green channel value (0-255)
      * @param blue the blue channel value (0-255)
-     * @return an InstantCommand that sets the strip segment color
+     * @return a SequentialCommandGroup that clears then sets the strip segment color
      * @throws IllegalArgumentException if candle or strip is null
      */
     public Command setStripColor(CANdle candle, LEDStrip strip, int red, int green, int blue) {
         if (candle == null || strip == null) {
             throw new IllegalArgumentException("Parameters cannot be null");
         }
-        return new InstantCommand(() -> candle.setLEDs(red, green, blue, 0, strip.start, strip.length()), this);
+        return new SequentialCommandGroup(
+            offCommand(candle, strip),
+            new InstantCommand(() -> candle.setLEDs(red, green, blue, 0, strip.start, strip.length()))
+        );
     }
 
     /**
@@ -352,10 +380,11 @@ public class CANdleSubsystem extends SubsystemBase{
     /**
      * Creates a command to animate an LED strip segment with custom configuration.
      * 
-     * <p>This command creates and starts an animation on the specified LED strip.
-     * The animation will continue running until replaced by another animation
-     * or until a solid color is set. The command completes instantly after
-     * starting the animation.
+     * <p>This command first clears any existing animations by turning off the strip,
+     * then creates and starts a new animation. This prevents LEDs from sticking in
+     * their previous state. The animation will continue running until replaced by 
+     * another animation or until a solid color is set. The command completes 
+     * instantly after starting the animation.
      * 
      * <p><b>Note:</b> CANdle devices typically support 2 animation slots. Starting
      * a new animation may replace an existing one depending on slot availability.
@@ -365,7 +394,7 @@ public class CANdleSubsystem extends SubsystemBase{
      * @param color the color to use for color-based animations (must not be null)
      * @param animation the type of animation to run (must not be null)
      * @param config the animation configuration parameters (must not be null)
-     * @return an InstantCommand that starts the animation
+     * @return a SequentialCommandGroup that clears then starts the animation
      * @throws IllegalArgumentException if any parameter is null
      * @see AnimationConfig
      * @see AnimationTypes
@@ -374,27 +403,58 @@ public class CANdleSubsystem extends SubsystemBase{
         if (candle == null || strip == null || color == null || animation == null || config == null) {
             throw new IllegalArgumentException("Parameters cannot be null");
         }
-        return new InstantCommand(() -> {
-            Animation anim = createCANdleAnimation(candle, strip, color, animation, config);
-            candle.animate(anim);
-        }, this);
+        return new SequentialCommandGroup(
+            offCommand(candle, strip),
+            new InstantCommand(() -> {
+                Animation anim = createCANdleAnimation(candle, strip, color, animation, config);
+                candle.animate(anim);
+            })
+        );
     }
     
     /**
      * Creates a command to animate an LED strip segment with default configuration.
      * 
-     * <p>This is a convenience method that uses {@link AnimationConfig#defaults()}
-     * for animation parameters.
+     * <p>This command first clears any existing animations by turning off the strip,
+     * then starts a new animation with default parameters. This prevents LEDs from 
+     * sticking in their previous state. This is a convenience method that uses 
+     * {@link AnimationConfig#defaults()} for animation parameters.
      * 
      * @param candle the CANdle device to animate (must not be null)
      * @param strip the LED strip segment to apply the animation to (must not be null)
      * @param color the color to use for color-based animations (must not be null)
      * @param animation the type of animation to run (must not be null)
-     * @return an InstantCommand that starts the animation with default settings
+     * @return a SequentialCommandGroup that clears then starts the animation with default settings
      * @see #animateStrip(CANdle, LEDStrip, LEDColor, AnimationTypes, AnimationConfig)
      */
     public Command animateStrip(CANdle candle, LEDStrip strip, LEDColor color, AnimationTypes animation) {
         return animateStrip(candle, strip, color, animation, AnimationConfig.defaults());
+    }
+
+    /**
+     * For Internal Use
+     * 
+     * @param candle
+     * @return
+     */
+    private Command offCommand(CANdle candle) {
+        if (candle == null) {
+            throw new IllegalArgumentException("CANdle cannot be null");
+        }
+        return new InstantCommand(() -> candle.setLEDs(0, 0, 0));
+    }
+    
+    /**
+     * For Internal Use
+     * 
+     * @param candle
+     * @return
+     */
+    private Command offCommand(CANdle candle, LEDStrip strip) {
+        if (candle == null || strip == null) {
+            throw new IllegalArgumentException("Parameters cannot be null");
+        }
+        return new InstantCommand(() -> candle.setLEDs(0, 0, 0, 0, strip.start, strip.length()));
     }
 
     /**
