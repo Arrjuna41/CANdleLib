@@ -1,8 +1,9 @@
 package frc.robot.CANdle;
 
-import frc.robot.MockCANdle;
+import frc.robot.MockCANdleGUI;
 
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 
 import com.ctre.phoenix.led.CANdle;
 import com.ctre.phoenix.led.CANdleConfiguration;
@@ -68,7 +69,7 @@ public class CANdleLib{
             candle = new CANdle(busId);
         }
         else {
-            candle = new MockCANdle(busId);
+            candle = new MockCANdleGUI(busId);
         }
         CANdleConfiguration config = new CANdleConfiguration();
         config.stripType = m_rgbOrder;
@@ -94,12 +95,20 @@ public class CANdleLib{
         return new LEDStrip(startIndex, endIndex);
     }
 
-    // public Animations createAnimation(CANdle candle, LEDStrip strip, Enum possibleStates, Enum colors) {
-    //     return new stateIndicator(candle, strip, possibleStates, colors); 
-    // }
+    public Animations createAnimation(CANdle candle, LEDStrip strip, Supplier<Enum<?>> possibleStates, LEDColor... colors) {
+        return new stateIndicator(candle, strip, possibleStates, colors); 
+    }
 
-    public Animations createAnimation(CANdle candle, LEDStrip strip, double min, double max, DoubleSupplier value, Colors fillColor, Colors emptyColor) {
+    public Animations createAnimation(CANdle candle, LEDStrip strip, double min, double max, DoubleSupplier value, LEDColor fillColor, LEDColor emptyColor) {
         return new rangeValue(candle, strip, min, max, value, fillColor, emptyColor); 
+    }
+
+    public Animations createAnimation(CANdle candle, LEDStrip strip, Supplier<Boolean> state, LEDColor trueColor, LEDColor falseColor) {
+        return new booleanAnim(candle, strip, state, trueColor, falseColor);
+    }
+
+    public Animations createAnimation(CANdle candle, LEDStrip strip, double time, LEDColor color) {
+        return new countdown(candle, strip, time, color);
     }
     
     /**
@@ -360,42 +369,85 @@ public class CANdleLib{
         }
     }
 
-    public enum AnimationType{
-        STATEINDICATOR,
-        RANGEVALUE,
-        BOOLEAN,
-        STATUS,
-        COUNTDOWN,
-        COUNTER
-    }
-
     public interface Animations {
         void run();
         void stop();
         void end();
     }
 
-    // public static class stateIndicator implements Animations{
+    public static class stateIndicator implements Animations{
+        private CANdle candle;
+        private LEDStrip strip;
+        private Supplier<Enum<?>> states;
+        private LEDColor[] colors;
 
-    //     public stateIndicator(CANdle candle, LEDStrip strip, Enum states, Enum colors) {
+        public stateIndicator(CANdle candle, LEDStrip strip, Supplier<Enum<?>> states, LEDColor... colors) {
+            this.candle = candle;
+            this.strip = strip;
+            this.states = states;
+            this.colors = colors;
+        }
 
-    //     }
+        private void draw() {
+            if (states == null || colors == null || colors.length == 0) {
+                candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
+                return;
+            }
+        
+            Enum<?> state = states.get();
 
-    //     @Override
-    //     public void run() {
+            int colorIndex = state.ordinal() % colors.length;
+            LEDColor color = colors[colorIndex];
+        
+            int r = color.getRed();
+            int g = color.getGreen();
+            int b = color.getBlue();
+        
+            candle.setLEDs(r, g, b, 0, strip.start, strip.length());
+        }
+        
 
-    //     }
+        private Command updateCommand = new Command() {
+            @Override
+            public void initialize() {
+            }
+    
+            @Override
+            public void execute() {
+                draw();
+            }
+    
+            @Override
+            public boolean isFinished() {
+                return false;
+            }
+    
+            @Override
+            public void end(boolean interrupted) {}
+        };
 
-    //     @Override
-    //     public void stop() {
-
-    //     }
-
-    //     @Override
-    //     public void end() {
-
-    //     }
-    // }
+        @Override
+        public void run() {
+            if (!updateCommand.isScheduled()) {
+                updateCommand.schedule();
+            }   
+        }
+    
+        @Override
+        public void stop() {
+            if (updateCommand.isScheduled()) {
+                updateCommand.cancel();
+            }
+        }
+    
+        @Override
+        public void end() {
+            if (updateCommand.isScheduled()) {
+                updateCommand.cancel();
+            }
+            candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
+        }
+    }
 
     public static class rangeValue implements Animations {
         private final CANdle candle;
@@ -406,7 +458,7 @@ public class CANdleLib{
         private final CANdleLib.LEDColor fillColor;
         private final CANdleLib.LEDColor emptyColor;
     
-        public rangeValue(CANdle candle, CANdleLib.LEDStrip strip, double min, double max, DoubleSupplier valueSupplier, Colors fillColor, Colors emptyColor) {
+        public rangeValue(CANdle candle, CANdleLib.LEDStrip strip, double min, double max, DoubleSupplier valueSupplier, LEDColor fillColor, LEDColor emptyColor) {
             this.candle = candle;
             this.strip = strip;
             this.min = min;
@@ -471,4 +523,155 @@ public class CANdleLib{
             candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
         }
     }    
+
+    public static class booleanAnim implements Animations{
+        private CANdle candle;
+        private LEDStrip strip;
+        private Supplier<Boolean> state;
+        private LEDColor trueColor;
+        private LEDColor falseColor;
+
+        public booleanAnim(CANdle candle, LEDStrip strip, Supplier<Boolean> state, LEDColor trueColor, LEDColor falseColor) {
+            this.candle = candle;
+            this.strip = strip;
+            this.state = state;
+            this.trueColor = trueColor;
+            this.falseColor = falseColor;
+        }
+
+        private void draw() {
+            if (state.get()) {
+                candle.setLEDs(trueColor.getRed(), trueColor.getGreen(), trueColor.getBlue(), 0, strip.start, strip.length());
+            } else {
+                candle.setLEDs(falseColor.getRed(), falseColor.getGreen(), falseColor.getBlue(), 0, strip.start, strip.length());
+            }
+        }
+
+        private Command updateCommand = new Command() {
+            @Override
+            public void initialize() {
+            }
+    
+            @Override
+            public void execute() {
+                draw();
+            }
+    
+            @Override
+            public boolean isFinished() {
+                return false;
+            }
+    
+            @Override
+            public void end(boolean interrupted) {}
+        };
+
+        @Override
+        public void run() {
+            if (!updateCommand.isScheduled()) {
+                updateCommand.schedule();
+            }   
+        }
+    
+        @Override
+        public void stop() {
+            if (updateCommand.isScheduled()) {
+                updateCommand.cancel();
+            }
+        }
+    
+        @Override
+        public void end() {
+            if (updateCommand.isScheduled()) {
+                updateCommand.cancel();
+            }
+            candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
+        }
+    }
+
+    public static class countdown implements Animations{
+        private CANdle candle;
+        private LEDStrip strip;
+        private double time;
+        private LEDColor color;
+        private final long startTimeMs;
+
+        public countdown(CANdle candle, LEDStrip strip, double time, LEDColor color) {
+            this.candle = candle;
+            this.strip = strip;
+            this.time = time;
+            this.color = color;
+            this.startTimeMs = System.currentTimeMillis();
+        }
+
+        public void draw() {
+            long currentTimeMs = System.currentTimeMillis();
+            double elapsedSeconds = (currentTimeMs - startTimeMs) / 1000.0;
+            double remaining = Math.max(0.0, time - elapsedSeconds);
+            int totalLEDs = strip.length();
+            double fraction = remaining / time;
+            int litLEDs = (int) Math.round(fraction * totalLEDs);
+    
+            litLEDs = Math.max(0, Math.min(litLEDs, totalLEDs));
+    
+            candle.setLEDs(
+                    color.getRed(),
+                    color.getGreen(),
+                    color.getBlue(),
+                    0,
+                    strip.start,
+                    litLEDs
+            );
+    
+            int remainingLEDs = totalLEDs - litLEDs;
+            if (remainingLEDs > 0) {
+                candle.setLEDs(
+                        0, 0, 0, 0,
+                        strip.start + litLEDs,
+                        remainingLEDs
+                );
+            }
+        }
+
+        private Command updateCommand = new Command() {
+            @Override
+            public void initialize() {
+            }
+    
+            @Override
+            public void execute() {
+                draw();
+            }
+    
+            @Override
+            public boolean isFinished() {
+                return false;
+            }
+    
+            @Override
+            public void end(boolean interrupted) {}
+        };
+
+        @Override
+        public void run() {
+            if (!updateCommand.isScheduled()) {
+                updateCommand.schedule();
+            }
+        }
+
+        @Override
+        public void stop() {
+            if (updateCommand.isScheduled()) {
+                updateCommand.cancel();
+            }
+        }
+
+        @Override
+        public void end() {
+            if (updateCommand.isScheduled()) {
+                updateCommand.cancel();
+            }
+            candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
+        }
+    }
 }

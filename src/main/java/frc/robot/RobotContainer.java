@@ -25,17 +25,12 @@ public class RobotContainer {
   private final CANdle candle = candleLib.createCANdle();
   private final LEDStrip ledStrip = new LEDStrip(0, 100);
 
-  private double value = 50.0;
-
   private final Animations animation =
       candleLib.createAnimation(
           candle,
           ledStrip,
-          0.0,
-          100.0,
-          () -> value,
-          Colors.RED,
-          Colors.OFF
+          10.0,
+          Colors.RED
       );
 
   private final CommandXboxController m_driverController =
@@ -50,8 +45,8 @@ public class RobotContainer {
     new Trigger(m_exampleSubsystem::exampleCondition)
         .onTrue(new ExampleCommand(m_exampleSubsystem));
 
-    m_driverController.x().onTrue(new InstantCommand(() -> animation.run())).onFalse(new InstantCommand(() -> animation.stop()));
-    m_driverController.button(1).whileTrue(new InstantCommand(() -> value = 75)).onFalse(new InstantCommand(() -> value = 25));
+    m_driverController.x().onTrue(new InstantCommand(() -> animation.run()));
+    m_driverController.button(1).whileTrue(new InstantCommand()).onFalse(new InstantCommand());
 }
 
 
