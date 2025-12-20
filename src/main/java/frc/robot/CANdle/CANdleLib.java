@@ -95,24 +95,98 @@ public class CANdleLib{
         return new LEDStrip(startIndex, endIndex);
     }
 
+    /**
+     * Creates a state indicator animation that displays different colors based on an enum state.
+     * 
+     * <p>This animation maps enum ordinal values to colors from the provided color array.
+     * When the state changes, the LED strip automatically updates to show the corresponding color.
+     * If there are more states than colors, the mapping wraps around using modulo.
+     * 
+     * @param candle the CANdle device to control
+     * @param strip the LED strip segment to animate
+     * @param possibleStates a supplier that returns the current enum state
+     * @param colors the array of colors to map to state ordinal values
+     * @return an Animations instance for the state indicator
+     */
     public Animations createAnimation(CANdle candle, LEDStrip strip, Supplier<Enum<?>> possibleStates, LEDColor... colors) {
         return new stateIndicator(candle, strip, possibleStates, colors); 
     }
 
+    /**
+     * Creates a range value animation that displays a numeric value as a progress bar.
+     * 
+     * <p>This animation visualizes a numeric value within a specified range by lighting
+     * a proportional number of LEDs. LEDs representing the current value are shown in the
+     * fill color, while remaining LEDs use the empty color. The value is automatically
+     * clamped to the min/max range.
+     * 
+     * @param candle the CANdle device to control
+     * @param strip the LED strip segment to animate
+     * @param min the minimum value of the range
+     * @param max the maximum value of the range
+     * @param value a supplier that returns the current value to display
+     * @param fillColor the color for LEDs representing the current value
+     * @param emptyColor the color for LEDs beyond the current value
+     * @return an Animations instance for the range value display
+     */
     public Animations createAnimation(CANdle candle, LEDStrip strip, double min, double max, DoubleSupplier value, LEDColor fillColor, LEDColor emptyColor) {
         return new rangeValue(candle, strip, min, max, value, fillColor, emptyColor); 
     }
 
+    /**
+     * Creates a boolean indicator animation that displays one of two colors based on a boolean state.
+     * 
+     * <p>This animation switches between two colors depending on the boolean state returned by
+     * the supplier. When the state is true, the strip shows trueColor; when false, it shows falseColor.
+     * This is useful for indicating binary states like sensor readings or system status.
+     * 
+     * @param candle the CANdle device to control
+     * @param strip the LED strip segment to animate
+     * @param state a supplier that returns the current boolean state
+     * @param trueColor the color to display when state is true
+     * @param falseColor the color to display when state is false
+     * @return an Animations instance for the boolean indicator
+     */
     public Animations createAnimation(CANdle candle, LEDStrip strip, Supplier<Boolean> state, LEDColor trueColor, LEDColor falseColor) {
         return new booleanAnim(candle, strip, state, trueColor, falseColor);
     }
 
+    /**
+     * Creates a countdown timer animation that visually displays remaining time.
+     * 
+     * <p>This animation starts a countdown from the specified time duration and progressively
+     * turns off LEDs as time elapses. The strip starts fully lit and gradually dims from one
+     * end to the other until all LEDs are off when time expires. Calling run() after completion
+     * restarts the countdown.
+     * 
+     * @param candle the CANdle device to control
+     * @param strip the LED strip segment to animate
+     * @param time the countdown duration in seconds
+     * @param color the color for the lit countdown LEDs
+     * @return an Animations instance for the countdown timer
+     */
     public Animations createAnimation(CANdle candle, LEDStrip strip, double time, LEDColor color) {
         return new countdown(candle, strip, time, color);
     }
 
-    public Animations createAnimation(CANdle candle, LEDStrip strip, LEDColor color, double frequency, double dimmness) {
-        return new breathe(candle, strip, color, frequency, dimmness);
+    /**
+     * Creates a breathing animation that smoothly pulses between dim and full brightness.
+     * 
+     * <p>This animation creates a smooth sine wave breathing effect, oscillating between
+     * a minimum brightness (dimmness) and full brightness at the specified frequency.
+     * Multiple breathing animations can be phase-shifted to create wave effects across
+     * different strip segments.
+     * 
+     * @param candle the CANdle device to control
+     * @param strip the LED strip segment to animate
+     * @param color the base color to breathe
+     * @param frequency the breathing rate in Hz (cycles per second)
+     * @param dimmness the minimum brightness level as a fraction (0.0-1.0, where 0.0 is off and 1.0 is full brightness)
+     * @param phaseShift the phase offset in radians (0 to 2π) for synchronizing multiple breathing animations
+     * @return an Animations instance for the breathing effect
+     */
+    public Animations createAnimation(CANdle candle, LEDStrip strip, LEDColor color, double frequency, double dimmness, double phaseShift) {
+        return new breathe(candle, strip, color, frequency, dimmness, phaseShift);
     }
     
     /**
@@ -330,11 +404,24 @@ public class CANdleLib{
             return new CustomColor(red, green, blue);
         }
 
+        /**
+         * Custom color implementation that allows arbitrary RGB values.
+         * 
+         * <p>This class is returned by {@link Colors#custom(int, int, int)} to create
+         * colors not available in the predefined Colors enum.
+         */
         public static class CustomColor implements LEDColor {
             public final int green;
             public final int blue;
             public final int red;
         
+            /**
+             * Constructs a custom color with the specified RGB values.
+             * 
+             * @param red red component (0-255)
+             * @param green green component (0-255)
+             * @param blue blue component (0-255)
+             */
             public CustomColor(int red, int green, int blue) {
                 this.red = red;
                 this.green = green;
@@ -373,18 +460,61 @@ public class CANdleLib{
         }
     }
 
+    /**
+     * Interface for LED animations that can be controlled through lifecycle methods.
+     * 
+     * <p>All animations implement this interface to provide consistent control over
+     * starting, pausing, and stopping animations. Animations are backed by WPILib
+     * Commands that are scheduled to the command scheduler.
+     */
     public interface Animations {
+        /**
+         * Starts or resumes the animation.
+         * 
+         * <p>If the animation is not currently scheduled, this schedules it to the
+         * command scheduler. If already running, this has no effect. For countdown
+         * animations, calling run() after completion restarts the timer.
+         */
         void run();
+        
+        /**
+         * Pauses the animation while maintaining the current LED state.
+         * 
+         * <p>This cancels the underlying command but does not turn off the LEDs,
+         * leaving them in their current state. Call run() to resume the animation.
+         */
         void stop();
+        
+        /**
+         * Stops the animation and turns off all LEDs in the strip.
+         * 
+         * <p>This cancels the underlying command and sets all LEDs in the animation's
+         * strip segment to off (0, 0, 0). This provides a clean exit from the animation.
+         */
         void end();
     }
 
+    /**
+     * State indicator animation that maps enum states to colors.
+     * 
+     * <p>This animation displays different colors based on the ordinal value of an enum state.
+     * It continuously polls the state supplier and updates the LED strip when the state changes.
+     * If there are more states than colors, the mapping wraps using modulo arithmetic.
+     */
     private static class stateIndicator implements Animations{
         private CANdle candle;
         private LEDStrip strip;
         private Supplier<Enum<?>> states;
         private LEDColor[] colors;
 
+        /**
+         * Constructs a state indicator animation.
+         * 
+         * @param candle the CANdle device to control
+         * @param strip the LED strip segment to animate
+         * @param states supplier that returns the current enum state
+         * @param colors array of colors mapped to state ordinal values
+         */
         public stateIndicator(CANdle candle, LEDStrip strip, Supplier<Enum<?>> states, LEDColor... colors) {
             this.candle = candle;
             this.strip = strip;
@@ -453,6 +583,13 @@ public class CANdleLib{
         }
     }
 
+    /**
+     * Range value animation that displays a numeric value as a progress bar.
+     * 
+     * <p>This animation visualizes a value within a specified range by lighting a proportional
+     * number of LEDs. The fill color represents the current value, while the empty color
+     * shows the remaining capacity. The value is automatically clamped to the min/max range.
+     */
     private static class rangeValue implements Animations {
         private final CANdle candle;
         private final CANdleLib.LEDStrip strip;
@@ -462,6 +599,17 @@ public class CANdleLib{
         private final CANdleLib.LEDColor fillColor;
         private final CANdleLib.LEDColor emptyColor;
     
+        /**
+         * Constructs a range value animation.
+         * 
+         * @param candle the CANdle device to control
+         * @param strip the LED strip segment to animate
+         * @param min the minimum value of the range
+         * @param max the maximum value of the range
+         * @param valueSupplier supplier that returns the current value to display
+         * @param fillColor color for LEDs representing the current value
+         * @param emptyColor color for LEDs beyond the current value
+         */
         public rangeValue(CANdle candle, CANdleLib.LEDStrip strip, double min, double max, DoubleSupplier valueSupplier, LEDColor fillColor, LEDColor emptyColor) {
             this.candle = candle;
             this.strip = strip;
@@ -528,6 +676,13 @@ public class CANdleLib{
         }
     }    
 
+    /**
+     * Boolean indicator animation that displays one of two colors based on a boolean state.
+     * 
+     * <p>This animation switches between two colors depending on the boolean state. When true,
+     * it displays trueColor; when false, it displays falseColor. Useful for binary indicators
+     * like sensor states or system status.
+     */
     private static class booleanAnim implements Animations{
         private CANdle candle;
         private LEDStrip strip;
@@ -535,6 +690,15 @@ public class CANdleLib{
         private LEDColor trueColor;
         private LEDColor falseColor;
 
+        /**
+         * Constructs a boolean indicator animation.
+         * 
+         * @param candle the CANdle device to control
+         * @param strip the LED strip segment to animate
+         * @param state supplier that returns the current boolean state
+         * @param trueColor color to display when state is true
+         * @param falseColor color to display when state is false
+         */
         public booleanAnim(CANdle candle, LEDStrip strip, Supplier<Boolean> state, LEDColor trueColor, LEDColor falseColor) {
             this.candle = candle;
             this.strip = strip;
@@ -593,6 +757,13 @@ public class CANdleLib{
         }
     }
 
+    /**
+     * Countdown timer animation that visually displays remaining time.
+     * 
+     * <p>This animation starts fully lit and progressively turns off LEDs as time elapses,
+     * creating a visual countdown. When the timer expires, all LEDs are off and the animation
+     * finishes. Calling run() after completion restarts the countdown from the beginning.
+     */
     private static class countdown implements Animations{
         private CANdle candle;
         private LEDStrip strip;
@@ -600,6 +771,14 @@ public class CANdleLib{
         private LEDColor color;
         private long startTimeMs;
         
+        /**
+         * Constructs a countdown timer animation.
+         * 
+         * @param candle the CANdle device to control
+         * @param strip the LED strip segment to animate
+         * @param time the countdown duration in seconds
+         * @param color the color for the lit countdown LEDs
+         */
         public countdown(CANdle candle, LEDStrip strip, double time, LEDColor color) {
             this.candle = candle;
             this.strip = strip;
@@ -608,7 +787,7 @@ public class CANdleLib{
             this.startTimeMs = 0;
         }
         
-        public void draw() {
+        private void draw() {
             long currentTimeMs = System.currentTimeMillis();
             double elapsedSeconds = (currentTimeMs - startTimeMs) / 1000.0;
             double remaining = Math.max(0.0, time - elapsedSeconds);
@@ -674,19 +853,38 @@ public class CANdleLib{
         }
     }
 
+    /**
+     * Breathing animation that smoothly pulses between dim and full brightness.
+     * 
+     * <p>This animation creates a sine wave breathing effect, smoothly oscillating between
+     * a minimum brightness (dimmness) and full brightness at the specified frequency. Multiple
+     * breathing animations can be phase-shifted to create wave patterns across strip segments.
+     */
     private static class breathe implements Animations{
         private CANdle candle;
         private LEDStrip strip;
         private LEDColor color;
         private double frequency;
         private double dimmness;
+        private double phaseShift;
 
-        public breathe(CANdle candle, LEDStrip strip, LEDColor color, double frequency, double dimmness){
+        /**
+         * Constructs a breathing animation.
+         * 
+         * @param candle the CANdle device to control
+         * @param strip the LED strip segment to animate
+         * @param color the base color to breathe
+         * @param frequency the breathing rate in Hz (cycles per second)
+         * @param dimmness the minimum brightness as a fraction (0.0-1.0)
+         * @param phaseShift the phase offset in radians (0 to 2π)
+         */
+        public breathe(CANdle candle, LEDStrip strip, LEDColor color, double frequency, double dimmness, double phaseShift) {
             this.candle = candle;
             this.strip = strip;
             this.color = color;
             this.frequency = frequency;
             this.dimmness = dimmness;
+            this.phaseShift = phaseShift;
         }
 
         private void draw() {
@@ -694,7 +892,7 @@ public class CANdleLib{
             double periodMs = 1000.0 / frequency;
             double timeInPeriod = currentTimeMs % periodMs;
             
-            double phase = (timeInPeriod / periodMs) * 2 * Math.PI;
+            double phase = (timeInPeriod / periodMs) * 2 * Math.PI + phaseShift;
             double brightness = (Math.sin(phase) + 1) / 2;
             
             double scale = dimmness + (brightness * (1.0 - dimmness));
