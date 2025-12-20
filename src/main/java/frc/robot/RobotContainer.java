@@ -14,13 +14,13 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 public class RobotContainer {
 
-  private final CANdleLib candleLib = new CANdleLib(Constants.candle.id, CANdle.LEDStripType.RGB);
+  private final CANdleLib candleLib = new CANdleLib(Constants.candle.id, CANdle.LEDStripType.RGB, 8);
   private final CANdle candle = candleLib.createCANdle();
   
-  private final LEDStrip topStrip = candleLib.createLEDStrip(0, 33);
-  private final LEDStrip middleStrip = candleLib.createLEDStrip(33, 66);
-  private final LEDStrip bottomStrip = candleLib.createLEDStrip(66, 100);
-  private final LEDStrip fullStrip = candleLib.createLEDStrip(0, 100);
+  private final LEDStrip topStrip = candleLib.createLEDStrip(0, 3);
+  private final LEDStrip middleStrip = candleLib.createLEDStrip(3, 5);
+  private final LEDStrip bottomStrip = candleLib.createLEDStrip(5, 8);
+  private final LEDStrip fullStrip = candleLib.createLEDStrip(0, 8);
 
   private final Animations breatheBlue = candleLib.createAnimation(
       candle, fullStrip, Colors.BLUE, 0.5, 0.2, 0

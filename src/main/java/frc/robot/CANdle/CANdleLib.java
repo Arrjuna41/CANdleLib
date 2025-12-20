@@ -498,6 +498,13 @@ public class CANdleLib{
          * strip segment to off (0, 0, 0). This provides a clean exit from the animation.
          */
         void end();
+
+        /**
+         * Checks if the animation is currently running.
+         * 
+         * @return A boolean indicating if the animation is active
+         */
+        boolean isRunning();
     }
 
     /**
@@ -586,6 +593,11 @@ public class CANdleLib{
                 updateCommand.cancel();
             }
             candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
+        }
+
+        @Override
+        public boolean isRunning() {
+            return updateCommand.isScheduled();
         }
     }
 
@@ -680,6 +692,11 @@ public class CANdleLib{
             }
             candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
         }
+
+        @Override
+        public boolean isRunning() {
+            return updateCommand.isScheduled();
+        }
     }    
 
     /**
@@ -760,6 +777,11 @@ public class CANdleLib{
                 updateCommand.cancel();
             }
             candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
+        }
+
+        @Override
+        public boolean isRunning() {
+            return updateCommand.isScheduled();
         }
     }
 
@@ -857,6 +879,11 @@ public class CANdleLib{
             }
             candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
         }
+
+        @Override
+        public boolean isRunning() {
+            return updateCommand.isScheduled();
+        }
     }
 
     /**
@@ -945,6 +972,11 @@ public class CANdleLib{
                 updateCommand.cancel();
             }
             candle.setLEDs(0, 0, 0, 0, strip.start, strip.length());
+        }
+
+        @Override
+        public boolean isRunning() {
+            return updateCommand.isScheduled();
         }
     }
 
