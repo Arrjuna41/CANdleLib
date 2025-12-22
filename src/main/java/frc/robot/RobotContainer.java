@@ -40,8 +40,24 @@ public class RobotContainer {
       candle, fullStrip, Colors.PURPLE, 0.8, 0.3, 0
   );
 
-  private final Animations countdown10sec = candleLib.createAnimation(
-      candle, fullStrip, 10.0, Colors.ORANGE
+  private final Animations countdown15sec = candleLib.createAnimation(
+      candle, fullStrip, 15.0, Colors.ORANGE
+  );
+
+  private final Animations anim1 =  candleLib.createAnimation(
+      candle, topStrip, Colors.RED, 0.2, 0.2, 0
+  );
+
+  private final Animations anim2 = candleLib.createAnimation(
+      candle, middleStrip, Colors.YELLOW, 0.2, 0.2, (2*Math.PI/3)
+  );
+
+  private final Animations anim3 = candleLib.createAnimation(
+      candle, bottomStrip, Colors.BLUE, 0.2, 0.2, (4*Math.PI/3)
+  );
+
+  private final Animations strobeAnim = candleLib.createAnimation(
+      candle, fullStrip, Colors.WHITE, 5.0, 0.0, 0
   );
 
   private enum RobotState {
@@ -120,7 +136,7 @@ public class RobotContainer {
 
     driver.button(6).onTrue(new InstantCommand(() -> {
         stopAll();
-        countdown10sec.run();
+        countdown15sec.run();
     }));
 
     driver.button(7).onTrue(new InstantCommand(() -> {
@@ -156,15 +172,15 @@ public class RobotContainer {
 
     driver.povLeft().onTrue(new InstantCommand(() -> {
         stopAll();
-        candleLib.createAnimation(candle, topStrip, Colors.RED, 0.2, 0.2, 0).run();
-        candleLib.createAnimation(candle, middleStrip, Colors.YELLOW, 0.2, 0.2, (2*Math.PI/3)).run();
-        candleLib.createAnimation(candle, bottomStrip, Colors.BLUE, 0.2, 0.2, (4*Math.PI/3)).run();
+        anim1.run();
+        anim2.run();
+        anim3.run();
     })
   );
 
     driver.povRight().onTrue(new InstantCommand(() -> {
         stopAll();
-        candleLib.createAnimation(candle, fullStrip, Colors.WHITE, 5.0, 0.0, 0).run();
+        strobeAnim.run();
     }));
   }
 
@@ -173,13 +189,17 @@ public class RobotContainer {
     breatheRed.end();
     breatheGreen.end();
     breathePurple.end();
-    countdown10sec.end();
+    countdown15sec.end();
     stateIndicator.end();
     boolIndicator.end();
     powerBar.end();
+    anim1.end();
+    anim2.end();
+    anim3.end();
+    strobeAnim.end();
   }
 
   public Command getAutonomousCommand() {
-    return new InstantCommand(() -> countdown10sec.run());
+    return new InstantCommand(() -> countdown15sec.run());
   }
 }
