@@ -16,7 +16,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 public class RobotContainer {
 
-  private final CANdleLib candleLib = new CANdleLib(Constants.candle.id, new LEDConfigs().withStripType(StripTypeValue.RGB), 8);
+  private final CANdleLib candleLib = new CANdleLib(Constants.candle.id, new LEDConfigs().withStripType(StripTypeValue.RGB), 8, 0.2);
   private final CANdle candle = candleLib.createCANdle();
   
   private final LEDStrip topStrip = candleLib.createLEDStrip(0, 3);

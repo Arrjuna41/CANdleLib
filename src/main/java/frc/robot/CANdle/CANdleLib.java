@@ -6,17 +6,13 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.configs.CANdleConfiguration;
 import com.ctre.phoenix6.hardware.CANdle;
 import com.ctre.phoenix6.signals.RGBWColor;
-import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.configs.LEDConfigs;
 import com.ctre.phoenix6.controls.SolidColor;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 
-import javax.swing.*;
-import java.awt.*;
 
 /**
  * Subsystem for controlling CTRE CANdle LED strips with animations and color control.
@@ -48,6 +44,7 @@ public class CANdleLib{
     private int busId;
     private LEDConfigs m_rgbOrder;
     public int ledCount;
+    private LEDConfigs globalBrightness;
 
     /**
      * Constructs a new CANdleLib with the specified CAN ID and LED strip type.
@@ -55,11 +52,13 @@ public class CANdleLib{
      * @param id the CAN bus ID of the CANdle device
      * @param rgbOrder the LED strip type defining the RGB byte order (e.g., RGB, GRB, BRG)
      * @param ledCount the total number of LEDs connected to the CANdle
+     * @param globalBrightness the brightness of the leds
      */
-    public CANdleLib(int id, LEDConfigs rgbOrder, int ledCount) {
+    public CANdleLib(int id, LEDConfigs rgbOrder, int ledCount, double globalBrightness) {
         busId = id;
         m_rgbOrder = rgbOrder;
         this.ledCount = ledCount;
+        this.globalBrightness = new LEDConfigs().withBrightnessScalar(globalBrightness);
     }
     
     /**
@@ -73,15 +72,10 @@ public class CANdleLib{
      */
     public CANdle createCANdle() {
         CANdle candle;
-
-        if (RobotBase.isReal()) {
-            candle = new CANdle(busId);
-        }
-        else {
-            candle = new MockCANdleGUI(busId, ledCount);
-        }
+        candle = new CANdle(busId);
         CANdleConfiguration config = new CANdleConfiguration();
         config.withLED(m_rgbOrder);
+        config.withLED(globalBrightness);
         candle.getConfigurator().apply(config);
         return candle;
     }
@@ -1022,106 +1016,6 @@ public class CANdleLib{
         @Override
         public boolean isRunning() {
             return updateCommand.isScheduled();
-        }
-    }
-
-    /**
-     * Mock CANdle implementation with a GUI for simulation environments.
-     * Phoenix 6 compatible version using setControl() API.
-     * 
-     * <p>This class simulates a CANdle device by displaying a graphical
-     * representation of the LED strip in a window. It allows visualization
-     * of LED colors during simulation.
-     */
-    private static class MockCANdleGUI extends CANdle {
-        private final int LED_COUNT;
-        private final java.awt.Color[] leds;
-
-        private JFrame frame;
-        private JPanel stripPanel;
-        private JLabel statusLabel;
-
-        public MockCANdleGUI(int deviceNumber, int ledCount) {
-            super(deviceNumber);
-        
-            if (!RobotBase.isSimulation()) {
-                throw new IllegalStateException("MockCANdleGUI must only be used in simulation");
-            }
-        
-            LED_COUNT = ledCount;
-            this.leds = new java.awt.Color[ledCount];
-        
-            for (int i = 0; i < ledCount; i++) {
-                leds[i] = java.awt.Color.BLACK;
-            }
-        
-            SwingUtilities.invokeLater(this::createGUI);
-        }
-
-        private void createGUI() {
-            frame = new JFrame("Mock CANdle LED Strip");
-            frame.setSize(800, 180);
-            frame.setLayout(new BorderLayout());
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-            stripPanel = new JPanel() {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    super.paintComponent(g);
-
-                    int ledWidth = getWidth() / LED_COUNT;
-                    int height = getHeight();
-
-                    for (int i = 0; i < LED_COUNT; i++) {
-                        g.setColor(leds[i]);
-                        g.fillRect(i * ledWidth, 0, ledWidth - 1, height);
-                    }
-                }
-            };
-
-            statusLabel = new JLabel("Mode: Idle", SwingConstants.CENTER);
-
-            frame.add(stripPanel, BorderLayout.CENTER);
-            frame.add(statusLabel, BorderLayout.SOUTH);
-            frame.setVisible(true);
-            frame.setAlwaysOnTop(true);
-        }
-
-        @Override
-        public StatusCode setControl(SolidColor request) {
-            // Extract parameters from the SolidColor request
-            int startIndex = request.LEDStartIndex;
-            int endIndex = request.LEDEndIndex;
-            RGBWColor color = request.Color;
-            
-            // Extract RGB values from RGBWColor
-            int r = color.Red;
-            int g = color.Green;
-            int b = color.Blue;
-            
-            java.awt.Color awtColor = new java.awt.Color(clamp(r), clamp(g), clamp(b));
-
-            // LEDEndIndex is inclusive, so we go up to and including endIndex
-            int end = Math.min(endIndex + 1, LED_COUNT);
-            for (int i = startIndex; i < end; i++) {
-                if (i >= 0 && i < LED_COUNT) {
-                    leds[i] = awtColor;
-                }
-            }
-
-            repaintStrip();
-            statusLabel.setText(String.format("RGB(%d, %d, %d) | Start: %d | End: %d", 
-                r, g, b, startIndex, endIndex));
-            
-            return StatusCode.OK;
-        }
-
-        private void repaintStrip() {
-            SwingUtilities.invokeLater(stripPanel::repaint);
-        }
-
-        private int clamp(int v) {
-            return Math.max(0, Math.min(255, v));
         }
     }
 }
